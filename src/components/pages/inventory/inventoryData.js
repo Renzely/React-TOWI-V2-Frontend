@@ -170,18 +170,24 @@ export default function Inventory() {
       headerClassName: "bold-header",
     },
     {
-      field: "expiryMonths",
-      headerName: "Expiry Month",
-      width: 180,
-      headerClassName: "bold-header",
-    },
-    {
-      field: "expiryQty",
-      headerName: "Expiry Qty",
-      width: 150,
+      field: "expiry",
+      headerName: "Expiry Details",
+      width: 500,
       headerClassName: "bold-header",
     },
   ];
+
+  // Helper function to format expiry
+  // ✅ Works in JavaScript
+  const formatExpiry = (expiry = []) => {
+    return expiry
+      .filter((e) => e.quantity > 0 && e.month !== "")
+      .map(
+        (e) =>
+          `${e.month} Month${e.month !== "1" ? "s" : ""} - Qty: ${e.quantity}`
+      )
+      .join(" || ");
+  };
 
   async function getUser() {
     try {
@@ -230,8 +236,7 @@ export default function Inventory() {
                 endingPCS: sku.endingPCS ?? 0,
                 offtake: sku.offtake ?? 0,
                 inventoryDays: sku.inventoryDays ?? 0,
-                expiryMonths: sku.expiryMonths || "",
-                expiryQty: sku.expiryQty ?? 0,
+                expiry: formatExpiry(sku.expiry), // 👈 here
               })
             );
 
@@ -242,8 +247,7 @@ export default function Inventory() {
                 endingPCS: "NC",
                 offtake: "NC",
                 inventoryDays: "NC",
-                expiryMonths: "",
-                expiryQty: "NC",
+                expiry: "",
               })
             );
 
@@ -254,8 +258,7 @@ export default function Inventory() {
                 endingPCS: "Delisted",
                 offtake: "Delisted",
                 inventoryDays: "Delisted",
-                expiryMonths: "",
-                expiryQty: "Delisted",
+                expiry: "",
               })
             );
 
@@ -351,9 +354,7 @@ export default function Inventory() {
                 offtake: status === "Carried" ? item.offtake || 0 : status,
                 inventoryDaysLevel:
                   status === "Carried" ? item.inventoryDays || 0 : status,
-                expiryMonths:
-                  status === "Carried" ? item.expiryMonths || "" : "",
-                expiryQty: status === "Carried" ? item.expiryQty || 0 : "",
+                expiry: status === "Carried" ? formatExpiry(item.expiry) : "",
               });
             });
           });
@@ -406,11 +407,22 @@ export default function Inventory() {
         "Beginning",
         "Delivery",
         "Ending",
-        "Expiry Month",
-        "Expiry Qty",
+        "Expiry",
         "Offtake",
         "Inventory Days Level",
       ];
+
+      const formatExpiry = (expiry = []) => {
+        return expiry
+          .filter((e) => e.quantity > 0 && e.month !== "")
+          .map(
+            (e) =>
+              `${e.month} Month${e.month !== "1" ? "s" : ""} - Qty: ${
+                e.quantity
+              }`
+          )
+          .join(" || ");
+      };
 
       const newData = response.data.data.map((item) => ({
         "#": item.count,
@@ -426,8 +438,7 @@ export default function Inventory() {
         Beginning: item.beginning,
         Delivery: item.delivery,
         Ending: item.ending,
-        "Expiry Month": item.expiryMonth || "",
-        "Expiry Qty": item.expiryQty || "",
+        Expiry: item.expiry || "",
         Offtake: item.offtake,
         "Inventory Days Level":
           typeof item.inventoryDaysLevel === "number"
@@ -438,14 +449,12 @@ export default function Inventory() {
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet([]);
 
-      // Add headers and data
       XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
       XLSX.utils.sheet_add_json(ws, newData, {
         origin: "A2",
         skipHeader: true,
       });
 
-      // Calculate column widths
       const colWidths = headers.map((header, index) => {
         const maxLength = Math.max(
           header.length,
@@ -456,7 +465,6 @@ export default function Inventory() {
 
       ws["!cols"] = colWidths;
 
-      // Bold header style
       headers.forEach((_, index) => {
         const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
         if (!ws[cellAddress]) return;
@@ -466,7 +474,6 @@ export default function Inventory() {
         };
       });
 
-      // Center align all data rows
       newData.forEach((_, rowIndex) => {
         headers.forEach((_, colIndex) => {
           const cellAddress = XLSX.utils.encode_cell({
